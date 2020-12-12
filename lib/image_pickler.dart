@@ -4,21 +4,21 @@
 
 // ignore_for_file: public_member_api_docs
 
+import 'dart:convert' show base64Decode, json, utf8;
 import 'dart:async';
-import 'dart:convert';
+import 'package:uuid/uuid.dart';
 import 'dart:io';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 
+import 'package:http/http.dart' as http;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'dart:async';
-
-import 'dart:io';
-
-import 'package:multi_image_picker/multi_image_picker.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:flutter/src/widgets/basic.dart';
 import 'package:flutter/src/widgets/container.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 void main() {
   runApp(MyApp());
@@ -29,7 +29,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Make your photo cartoon',
-      home: MyHomePage(title: 'Cartoon magic'),
+      home: MyHomePage(title: 'Cartoon photo app'),
     );
   }
 }
@@ -44,7 +44,8 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  PickedFile _imageFile;
+  bool isLoading = false;
+  String _imageFilePath;
   dynamic _pickImageError;
   String _retrieveDataError;
 
@@ -52,14 +53,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _onImageButtonPressed(ImageSource source, {BuildContext context}) async {
     try {
-      final pickedFile = await _picker.getImage(
+      PickedFile pickedFile = await _picker.getImage(
         source: source,
         maxWidth: null,
         maxHeight: null,
         imageQuality: 100,
       );
       setState(() {
-        _imageFile = pickedFile;
+        _imageFilePath = pickedFile.path;
       });
     } catch (e) {
       setState(() {
@@ -68,12 +69,57 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Widget _previewButtons(){
+
+  Future<String> uploadImage(filepath, url) async {
+
+    var request = http.MultipartRequest(
+        "POST", Uri.parse(url));
+    var multipartFile = await http.MultipartFile.fromPath("image", filepath);
+    request.files.add(multipartFile);
+    http.StreamedResponse response = await request.send();
+    var responseByteArray = await response.stream.toBytes();
+    var jsonResponse =  json.decode(utf8.decode(responseByteArray));
+
+    var bytes = base64Decode(jsonResponse['image']);
+    String dir = (await getApplicationDocumentsDirectory()).path;
+
+    var uuid = Uuid();
+
+    var uuidImgName = uuid.v1();
+
+    String fullPath = '$dir/$uuidImgName.png';
+    File file = File(fullPath);
+    await file.writeAsBytes(bytes);
+    print(file.path);
+
+    await ImageGallerySaver.saveImage(bytes);
+
+    return file.path;
+  }
+
+  void _onMakeAnimeButtonPressed(BuildContext context) async {
+    try {
+      setState(() {
+        isLoading = true;
+      });
+      String imagePath = await uploadImage(_imageFilePath, 'http://192.168.0.100:8080/cartoonize');
+      setState(() {
+        _imageFilePath = imagePath;
+      });
+      isLoading = false;
+    } catch (e) {
+      setState(() {
+        _pickImageError = e;
+      });
+    }
+  }
+
+  Widget _previewButtons({BuildContext context}){
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         SizedBox(
-          width:120,
+          height: 100,
+          width:140,
           child: RaisedButton.icon(
               onPressed: () {},
               icon: Icon(Icons.add_a_photo, color: Colors.white),
@@ -81,9 +127,10 @@ class _MyHomePageState extends State<MyHomePage> {
               color: Colors.blue
           ),
         ),
-        SizedBox(width: 80),
+        SizedBox(width: 500),
         SizedBox(
-          width:120,
+          height: 100,
+          width:140,
           child: RaisedButton.icon(
               onPressed: () {},
               icon: Icon(Icons.backup, color: Colors.white),
@@ -95,53 +142,68 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  Future<Widget> _getImageSize(imgPath) async {
+    File image = new File(_imageFilePath); // Or any other way to get a File instance.
+    var decodedImage = await decodeImageFromList(image.readAsBytesSync());
+    print(decodedImage.width);
+    print(decodedImage.height);
+    print(decodedImage.height / decodedImage.width);
+    var screen_width = (MediaQuery.of(context).size.width);
+    var screen_height = (MediaQuery.of(context).size.height - 245);
+    print(screen_height / screen_width);
+  }
+
 
   Widget _previewImage() {
     final Text retrieveError = _getRetrieveErrorWidget();
     if (retrieveError != null) {
       return retrieveError;
     }
-    if (_imageFile != null) {
-      if (kIsWeb) {
-        return Column(
-          children: [
-            Image.network(_imageFile.path),
-            _previewButtons()
-          ],
-        );
-      } else {
-        return Column(
-          children: [
-            Container(
-              padding: EdgeInsets.fromLTRB(10, 10, 10, 10),
-              child:
-                ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Image.file(File(_imageFile.path), height: 450)
-                ),
+    if (_imageFilePath != null) {
+        _getImageSize(_imageFilePath);
+        return Container(
+          margin:EdgeInsets.all(8.0),
+          child: Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8.0))),
+            child: InkWell(
+              onTap: () => print("ciao"),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,  // add this
+                children: <Widget>[
+                  ClipRRect(
+                    borderRadius: BorderRadius.all(Radius.circular(8.0)),
+                    child: Image.file(
+                        File(_imageFilePath),
+                        // height: (MediaQuery.of(context).size.height) - 245,
+                        height: (MediaQuery.of(context).size.height) - 245,
+                        fit:BoxFit.fill
+
+                    ),
+                  ),
+                  // SizedBox(height: 150),
+                ],
+              ),
             ),
-            Divider(),
-            _previewButtons(),
-            Divider()
-          ],
+          ),
         );
-      }
     } else if (_pickImageError != null) {
       return Text(
         'Pick image error: $_pickImageError',
         textAlign: TextAlign.center,
       );
     } else {
-      return Center(
-        child: SizedBox(
-          height: 550,
-          child: Center(
-            child: const Text(
-              'You have not yet picked an image.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
-                color: Colors.white,
+      return Expanded(
+        child: Padding(
+          padding: const EdgeInsets.all(50.0),
+          child: FittedBox(
+            fit: BoxFit.contain, // otherwise the logo will be tiny
+            child: Center(
+              child: const Text(
+                'You have not yet picked an image.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -154,21 +216,28 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        backgroundColor: Colors.deepPurpleAccent,
+        title: Text(widget.title, style: TextStyle(color: Colors.white)),
         actions: [
-          IconButton(icon: Icon(Icons.wb_cloudy_rounded), onPressed: () {}),
+          IconButton(icon: Icon(Icons.wb_cloudy_rounded, color: Colors.white), onPressed: () {}),
         ],
       ),
       backgroundColor: CupertinoColors.inactiveGray,
       body: Column(
         children: [
-          _previewImage(),
+          isLoading ? SizedBox(
+            height: (MediaQuery.of(context).size.height - 221),
+            child: SpinKitFadingCircle(
+              color: Colors.deepPurpleAccent,
+              size: 100.0,
+            ),
+          ) : _previewImage(),
+          Divider(),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               SizedBox(
-                width:120,
                 child: RaisedButton.icon(
                     onPressed: () {
                       _onImageButtonPressed(ImageSource.gallery, context: context);
@@ -178,9 +247,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     color: Colors.blue
                 ),
               ),
-              SizedBox(width: 80),
+              SizedBox(width: (MediaQuery.of(context).size.width) - 235),
               SizedBox(
-                width: 120,
                 child: RaisedButton.icon(
                     onPressed: () {
                       _onImageButtonPressed(ImageSource.camera, context: context);
@@ -193,17 +261,22 @@ class _MyHomePageState extends State<MyHomePage> {
             ],
           ),
           Divider(),
-          Column(
-            children: [
-              RaisedButton.icon(
-                  onPressed: () {
-                    _onImageButtonPressed(ImageSource.camera, context: context);
-                  },
-                  icon: Icon(Icons.auto_awesome, color: Colors.black),
-                  label: Text('Make magic', style: TextStyle(color: Colors.black)),
-                  color: Colors.amber
-              ),
-            ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 10),
+            child: Column(
+              children: [
+                SizedBox(
+                  child: RaisedButton.icon(
+                      onPressed: () {
+                        _onMakeAnimeButtonPressed(context);
+                      },
+                      icon: Icon(Icons.auto_awesome, color: Colors.black),
+                      label: Text('Make anime', style: TextStyle(color: Colors.black)),
+                      color: Colors.amber
+                  ),
+                ),
+              ],
+            ),
           )
         ],
       ),
@@ -217,21 +290,6 @@ class _MyHomePageState extends State<MyHomePage> {
       return result;
     }
     return null;
-  }
-
-  Future<void> retrieveLostData() async {
-
-    final LostData response = await _picker.getLostData();
-    if (response.isEmpty) {
-      return;
-    }
-    if (response.file != null) {
-      setState(() {
-        _imageFile = response.file;
-      });
-    } else {
-      _retrieveDataError = response.exception.code;
-    }
   }
 }
 
