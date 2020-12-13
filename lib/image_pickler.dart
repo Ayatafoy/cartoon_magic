@@ -4,7 +4,7 @@
 
 // ignore_for_file: public_member_api_docs
 
-import 'dart:convert' show base64Decode, json, utf8;
+import 'dart:convert' show base64, base64Decode, base64Encode, json, utf8;
 import 'dart:async';
 import 'package:uuid/uuid.dart';
 import 'dart:io';
@@ -69,40 +69,70 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<String> postRequest(filepath, url) async {
 
-  Future<String> uploadImage(filepath, url) async {
+    final bytesImg = File(filepath).readAsBytesSync();
+    String base64Encode = base64.encode(bytesImg);
+    var body = json.encode({
+      'image': base64Encode,
+    });
+    var response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Simple simx6EUjtNIjwjhMtYn8iau01Cw1'
+      },
+      body: body,
+    );
 
-    var request = http.MultipartRequest(
-        "POST", Uri.parse(url));
-    var multipartFile = await http.MultipartFile.fromPath("image", filepath);
-    request.files.add(multipartFile);
-    http.StreamedResponse response = await request.send();
-    var responseByteArray = await response.stream.toBytes();
-    var jsonResponse =  json.decode(utf8.decode(responseByteArray));
-
-    var bytes = base64Decode(jsonResponse['image']);
+    var bytes = base64Decode(json.decode(response.body)['result']['image']);
     String dir = (await getApplicationDocumentsDirectory()).path;
-
     var uuid = Uuid();
-
     var uuidImgName = uuid.v1();
-
     String fullPath = '$dir/$uuidImgName.png';
     File file = File(fullPath);
     await file.writeAsBytes(bytes);
-    print(file.path);
-
-    await ImageGallerySaver.saveImage(bytes);
 
     return file.path;
   }
+
+  // Future<String> uploadImage(filepath, url) async {
+  //
+  //   var request = http.MultipartRequest("POST", Uri.parse(url));
+  //   var multipartFile = await http.MultipartFile.fromPath("image", filepath);
+  //   request.files.add(multipartFile);
+  //   request.headers.addAll({
+  //     'Content-Type': 'application/json',
+  //     'Authorization': 'Simple simx6EUjtNIjwjhMtYn8iau01Cw1'
+  //   });
+  //   http.StreamedResponse response = await request.send();
+  //   var responseByteArray = await response.stream.toBytes();
+  //   var jsonResponse =  json.decode(utf8.decode(responseByteArray));
+  //
+  //   var bytes = base64Decode(jsonResponse['image']);
+  //   String dir = (await getApplicationDocumentsDirectory()).path;
+  //
+  //   var uuid = Uuid();
+  //
+  //   var uuidImgName = uuid.v1();
+  //
+  //   String fullPath = '$dir/$uuidImgName.png';
+  //   File file = File(fullPath);
+  //   await file.writeAsBytes(bytes);
+  //   print(file.path);
+  //
+  //   await ImageGallerySaver.saveImage(bytes);
+  //
+  //   return file.path;
+  // }
 
   void _onMakeAnimeButtonPressed(BuildContext context) async {
     try {
       setState(() {
         isLoading = true;
       });
-      String imagePath = await uploadImage(_imageFilePath, 'http://192.168.0.100:8080/cartoonize');
+      String imagePath = await postRequest(_imageFilePath, 'https://api.algorithmia.com/v1/algo/ayatafoy/cartoon_magic/0.1.17?timeout=300');
+      // String imagePath = await uploadImage(_imageFilePath, 'http://10.0.2.2:8080/cartoonize');
       setState(() {
         _imageFilePath = imagePath;
       });
