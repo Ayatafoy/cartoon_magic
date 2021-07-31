@@ -6,6 +6,7 @@
 
 import 'dart:convert' show base64, base64Decode, base64Encode, json, utf8;
 import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:io';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
@@ -19,6 +20,11 @@ import 'package:flutter/src/widgets/basic.dart';
 import 'package:flutter/src/widgets/container.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:carousel_slider/carousel_slider.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:path/path.dart' as p;
+import 'package:wc_flutter_share/wc_flutter_share.dart';
+
 
 void main() {
   runApp(MyApp());
@@ -29,7 +35,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Make your photo cartoon',
-      home: MyHomePage(title: 'Cartoon photo app'),
+      home: MyHomePage(
+          title: 'Funk'
+      ),
     );
   }
 }
@@ -39,17 +47,38 @@ class MyHomePage extends StatefulWidget {
 
   final String title;
 
+
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
+
+final List<String> imgList = [
+  'images/cartoon_samples/sample_1.jpg',
+  'images/cartoon_samples/sample_2.jpg',
+  'images/cartoon_samples/sample_3.jpg',
+  'images/cartoon_samples/sample_4.jpg',
+  'images/cartoon_samples/sample_5.jpg',
+  'images/cartoon_samples/sample_6.jpg',
+  'images/cartoon_samples/sample_7.jpg',
+  'images/cartoon_samples/sample_8.jpg',
+  'images/cartoon_samples/sample_9.jpg',
+  'images/cartoon_samples/sample_10.jpg'
+];
+
 
 class _MyHomePageState extends State<MyHomePage> {
   bool isLoading = false;
   String _imageFilePath;
   dynamic _pickImageError;
   String _retrieveDataError;
+  int _current = 0;
 
   final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   void _onImageButtonPressed(ImageSource source, {BuildContext context}) async {
     try {
@@ -57,7 +86,7 @@ class _MyHomePageState extends State<MyHomePage> {
         source: source,
         maxWidth: null,
         maxHeight: null,
-        imageQuality: 100,
+        imageQuality: 20,
       );
       setState(() {
         _imageFilePath = pickedFile.path;
@@ -96,43 +125,12 @@ class _MyHomePageState extends State<MyHomePage> {
     return file.path;
   }
 
-  // Future<String> uploadImage(filepath, url) async {
-  //
-  //   var request = http.MultipartRequest("POST", Uri.parse(url));
-  //   var multipartFile = await http.MultipartFile.fromPath("image", filepath);
-  //   request.files.add(multipartFile);
-  //   request.headers.addAll({
-  //     'Content-Type': 'application/json',
-  //     'Authorization': 'Simple simx6EUjtNIjwjhMtYn8iau01Cw1'
-  //   });
-  //   http.StreamedResponse response = await request.send();
-  //   var responseByteArray = await response.stream.toBytes();
-  //   var jsonResponse =  json.decode(utf8.decode(responseByteArray));
-  //
-  //   var bytes = base64Decode(jsonResponse['image']);
-  //   String dir = (await getApplicationDocumentsDirectory()).path;
-  //
-  //   var uuid = Uuid();
-  //
-  //   var uuidImgName = uuid.v1();
-  //
-  //   String fullPath = '$dir/$uuidImgName.png';
-  //   File file = File(fullPath);
-  //   await file.writeAsBytes(bytes);
-  //   print(file.path);
-  //
-  //   await ImageGallerySaver.saveImage(bytes);
-  //
-  //   return file.path;
-  // }
-
   void _onMakeAnimeButtonPressed(BuildContext context) async {
     try {
       setState(() {
         isLoading = true;
       });
-      String imagePath = await postRequest(_imageFilePath, 'https://api.algorithmia.com/v1/algo/ayatafoy/cartoon_magic/0.1.17?timeout=300');
-      // String imagePath = await uploadImage(_imageFilePath, 'http://10.0.2.2:8080/cartoonize');
+      String imagePath = await postRequest(_imageFilePath, 'https://api.algorithmia.com/v1/algo/ayatafoy/cartoon_magic/0.1.17?timeout=10');
       setState(() {
         _imageFilePath = imagePath;
       });
@@ -144,74 +142,25 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Widget _previewButtons({BuildContext context}){
-    return Row(
-      children: [
-        SizedBox(
-          height: 100,
-          width:140,
-          child: RaisedButton.icon(
-              onPressed: () {},
-              icon: Icon(Icons.add_a_photo, color: Colors.white),
-              label: Text('Save', style: TextStyle(color: Colors.white)),
-              color: Colors.blue
-          ),
-        ),
-        SizedBox(width: 500),
-        SizedBox(
-          height: 100,
-          width:140,
-          child: RaisedButton.icon(
-              onPressed: () {},
-              icon: Icon(Icons.backup, color: Colors.white),
-              label: Text('Share', style: TextStyle(color: Colors.white)),
-              color: Colors.blue
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<Widget> _getImageSize(imgPath) async {
-    File image = new File(_imageFilePath); // Or any other way to get a File instance.
-    var decodedImage = await decodeImageFromList(image.readAsBytesSync());
-    print(decodedImage.width);
-    print(decodedImage.height);
-    print(decodedImage.height / decodedImage.width);
-    var screen_width = (MediaQuery.of(context).size.width);
-    var screen_height = (MediaQuery.of(context).size.height - 245);
-    print(screen_height / screen_width);
-  }
-
-
   Widget _previewImage() {
     final Text retrieveError = _getRetrieveErrorWidget();
     if (retrieveError != null) {
       return retrieveError;
     }
     if (_imageFilePath != null) {
-        _getImageSize(_imageFilePath);
         return Container(
           margin:EdgeInsets.all(8.0),
           child: Card(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8.0))),
             child: InkWell(
               onTap: () => print("ciao"),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,  // add this
-                children: <Widget>[
-                  ClipRRect(
-                    borderRadius: BorderRadius.all(Radius.circular(8.0)),
-                    child: Image.file(
-                        File(_imageFilePath),
-                        // height: (MediaQuery.of(context).size.height) - 245,
-                        height: (MediaQuery.of(context).size.height) - 245,
-                        fit:BoxFit.fill
-
-                    ),
-                  ),
-                  // SizedBox(height: 150),
-                ],
+              child: ClipRRect(
+                borderRadius: BorderRadius.all(Radius.circular(8.0)),
+                child: Image.file(
+                    File(_imageFilePath),
+                    height: (MediaQuery.of(context).size.height) / 1.45,
+                    fit:BoxFit.cover
+                ),
               ),
             ),
           ),
@@ -222,18 +171,42 @@ class _MyHomePageState extends State<MyHomePage> {
         textAlign: TextAlign.center,
       );
     } else {
-      return Expanded(
-        child: Padding(
-          padding: const EdgeInsets.all(50.0),
-          child: FittedBox(
-            fit: BoxFit.contain, // otherwise the logo will be tiny
-            child: Center(
-              child: const Text(
-                'You have not yet picked an image.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                ),
+      return Container(
+        margin:EdgeInsets.all(8.0),
+        child: Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8.0))),
+          child: InkWell(
+            onTap: () => {
+              print(MediaQuery.of(context).size.height / 1.57)
+            },
+            child: CarouselSlider(
+              items: imgList.map((item) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Flexible(
+                    child: ClipRRect(
+                      child: Image.asset(
+                          item,
+                          height: MediaQuery.of(context).size.height,
+                          width: MediaQuery.of(context).size.width,
+                          fit: BoxFit.cover
+                      ),
+                    ),
+                  ),
+                ],
+              )).toList(),
+              options: CarouselOptions(
+                  autoPlay: true,
+                  viewportFraction: 1,
+                  // enlargeCenterPage: true,
+                  pauseAutoPlayOnManualNavigate: true,
+                  // aspectRatio: 0.65,
+                  aspectRatio: 0.89,
+                  onPageChanged: (index, reason) {
+                    setState(() {
+                      _current = index;
+                    });
+                  }
               ),
             ),
           ),
@@ -242,21 +215,74 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  _toastInfo(String info) {
+    Fluttertoast.showToast(msg: info, toastLength: Toast.LENGTH_LONG);
+  }
+
+  void _saveImage(String path) async {
+    try {
+      final ByteData bytes= File(path).readAsBytesSync().buffer.asByteData();
+      final result = await ImageGallerySaver.saveImage(bytes.buffer.asUint8List());
+      _toastInfo("$result");
+    } catch (e) {
+      print('error: $e');
+    }
+  }
+
+  void _shareImage(String path) async {
+    try {
+      String extension = p.extension(path);
+      String fileName = p.basename(path);
+      String mimeType = 'image/png';
+      if (extension == '.jpg'){
+        mimeType = 'image/jpg';
+      }
+      final ByteData bytes= File(path).readAsBytesSync().buffer.asByteData();
+
+      await WcFlutterShare.share(
+          sharePopupTitle: 'share',
+          fileName: fileName,
+          mimeType: mimeType,
+          bytesOfFile: bytes.buffer.asUint8List());
+    } catch (e) {
+      print('error: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.deepPurpleAccent,
-        title: Text(widget.title, style: TextStyle(color: Colors.white)),
-        actions: [
-          IconButton(icon: Icon(Icons.wb_cloudy_rounded, color: Colors.white), onPressed: () {}),
+        backgroundColor: Colors.black,
+        title: Padding(
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+          child: Text(widget.title, style: TextStyle(
+              color: Colors.white,
+              fontFamily: 'Courgette',
+              fontSize: 33
+          )),
+        ),
+        actions: <Widget>[
+          FlatButton(
+
+            child: Icon(Icons.save_alt, color: Colors.white),
+            onPressed: () async {
+              _saveImage(_imageFilePath);
+            },
+          ),
+          FlatButton(
+            child: Icon(Icons.share, color: Colors.white),
+            onPressed: () async {
+              _shareImage(_imageFilePath);
+            },
+          ),
         ],
       ),
-      backgroundColor: CupertinoColors.inactiveGray,
+      backgroundColor: CupertinoColors.black,
       body: Column(
         children: [
           isLoading ? SizedBox(
-            height: (MediaQuery.of(context).size.height - 221),
+            height: (MediaQuery.of(context).size.height / 1.388),
             child: SpinKitFadingCircle(
               color: Colors.deepPurpleAccent,
               size: 100.0,
@@ -267,47 +293,66 @@ class _MyHomePageState extends State<MyHomePage> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              SizedBox(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10,10,25,10),
                 child: RaisedButton.icon(
                     onPressed: () {
                       _onImageButtonPressed(ImageSource.gallery, context: context);
                     },
-                    icon: Icon(Icons.photo_library, color: Colors.white),
-                    label: Text('Gallery', style: TextStyle(color: Colors.white)),
-                    color: Colors.blue
+                    icon: Icon(Icons.photo_library, color: Colors.white, size: 30),
+                    label: Text('', style: TextStyle(color: Colors.white)),
+                    color: Colors.black
                 ),
               ),
-              SizedBox(width: (MediaQuery.of(context).size.width) - 235),
-              SizedBox(
+              // SizedBox(width: MediaQuery.of(context).size.width / 10),
+              Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Column(
+                  children: [
+                    Material(
+                      elevation: 1.0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(15.0)),
+                      ),
+                      clipBehavior: Clip.antiAliasWithSaveLayer,
+                      color: Colors.transparent,
+                      child: Ink.image(
+                        image: AssetImage('images/anime_2.png'),
+                        fit: BoxFit.cover,
+                        width:  MediaQuery.of(context).size.width / 5,
+                        height:  MediaQuery.of(context).size.width / 5,
+                        child: InkWell(
+                          onTap: () {
+                            _onMakeAnimeButtonPressed(context);
+                          },
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 5,0,0),
+                      child: Text('Cartoon', style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Courgette',
+                          fontSize: 15
+                      )),
+                    ),
+                  ],
+                ),
+              ),
+              // SizedBox(width:  MediaQuery.of(context).size.width / 10),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(25,10,10,10),
                 child: RaisedButton.icon(
                     onPressed: () {
                       _onImageButtonPressed(ImageSource.camera, context: context);
                     },
-                    icon: Icon(Icons.camera_alt, color: Colors.white),
-                    label: Text('Camera', style: TextStyle(color: Colors.white)),
-                    color: Colors.blue
+                    icon: Icon(Icons.camera_alt, color: Colors.white, size: 30),
+                    label: Text('', style: TextStyle(color: Colors.white)),
+                    color: Colors.black
                 ),
               )
             ],
           ),
-          Divider(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 10),
-            child: Column(
-              children: [
-                SizedBox(
-                  child: RaisedButton.icon(
-                      onPressed: () {
-                        _onMakeAnimeButtonPressed(context);
-                      },
-                      icon: Icon(Icons.auto_awesome, color: Colors.black),
-                      label: Text('Make anime', style: TextStyle(color: Colors.black)),
-                      color: Colors.amber
-                  ),
-                ),
-              ],
-            ),
-          )
         ],
       ),
     );
@@ -322,5 +367,3 @@ class _MyHomePageState extends State<MyHomePage> {
     return null;
   }
 }
-
-typedef void OnPickImageCallback(double maxWidth, double maxHeight, int quality);

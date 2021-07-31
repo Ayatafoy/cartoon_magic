@@ -1,4 +1,4 @@
-name: cartoon_magic
+name: Funk
 description: A new Flutter application.
 
 # The following line prevents the package from being accidentally published to
@@ -36,7 +36,10 @@ dependencies:
   image_gallery_saver: ^1.6.1
   uuid: ^2.2.2
   flutter_spinkit: ^4.1.2
-
+  social_share_plugin: ^0.3.1+1
+  wc_flutter_share: ^0.2.2
+  fluttertoast: ^7.1.6
+  carousel_slider: ^2.3.1
 
   camera:
   path_provider:
@@ -64,7 +67,17 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - images/lake.jpg
+    - images/anime_2.png
+    - images/purple_1.jpeg
+    - images/purple_2.jpg
+    - images/purple_3.jpg
+    - images/purple_4.jpg
+    - images/purple_5.jpg
+    - images/purple_6.jpg
+    - images/purple.png
+    - images/logo.png
+    - images/main.png
+    - images/cartoon_samples/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.
@@ -77,6 +90,10 @@ flutter:
   # "family" key with the font family name, and a "fonts" key with a
   # list giving the asset and other descriptors for the font. For
   # example:
+  fonts:
+    - family: Courgette
+      fonts:
+        - asset: fonts/Courgette-Regular.ttf
   # fonts:
   #   - family: Schyler
   #     fonts:
